@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="fr" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Bot - Guide de Déploiement</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <style>
+    * { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; }
+    pre { background: #1f2937; color: #e5e7eb; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+    .code-block { background: #0f172a; border-left: 4px solid #075e54; }
+    .tab-active { border-bottom: 3px solid #075e54; color: #075e54; }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full w-full bg-gray-50" style="overflow-y: auto;">
+  <div class="max-w-4xl mx-auto p-4 pb-12">
+   <!-- Header -->
+   <div class="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-lg mb-6 shadow-lg">
+    <div class="flex items-center gap-3 mb-2">
+     <i data-lucide="bot" style="width:32px;height:32px;"></i>
+     <h1 class="text-3xl font-bold">Bot WhatsApp - Guide Complet</h1>
+    </div>
+    <p class="text-green-100">Avec commandes de groupe (/kickall, /tagall, /clear, etc.)</p>
+   </div><!-- Tabs -->
+   <div class="flex gap-2 mb-6 border-b border-gray-300">
+    <button onclick="switchTab('setup')" class="px-4 py-2 tab-active font-semibold">Setup</button> <button onclick="switchTab('files')" class="px-4 py-2 font-semibold">Fichiers</button> <button onclick="switchTab('commands')" class="px-4 py-2 font-semibold">Commandes</button> <button onclick="switchTab('deploy')" class="px-4 py-2 font-semibold">Déploiement</button>
+   </div><!-- Setup Tab -->
+   <div id="setup-tab" class="space-y-4 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow">
+     <h2 class="text-2xl font-bold text-gray-800 mb-4">📦 Installation</h2>
+     <div class="space-y-4">
+      <div class="border-l-4 border-blue-500 pl-4">
+       <h3 class="font-bold text-lg">Étape 1 : Node.js</h3>
+       <p class="text-gray-600 mt-1">Télécharger Node.js (inclut npm) depuis <a href="https://nodejs.org" target="_blank" class="text-blue-600 underline">nodejs.org</a></p>
+      </div>
+      <div class="border-l-4 border-blue-500 pl-4">
+       <h3 class="font-bold text-lg">Étape 2 : Créer le dossier</h3>
+       <pre>mkdir my-whatsapp-bot
+cd my-whatsapp-bot</pre>
+      </div>
+      <div class="border-l-4 border-blue-500 pl-4">
+       <h3 class="font-bold text-lg">Étape 3 : Initialiser npm</h3>
+       <pre>npm init -y</pre>
+      </div>
+      <div class="border-l-4 border-blue-500 pl-4">
+       <h3 class="font-bold text-lg">Étape 4 : Installer les dépendances</h3>
+       <pre>npm install whatsapp-web.js qrcode-terminal dotenv fs</pre>
+      </div>
+      <div class="border-l-4 border-green-500 pl-4">
+       <h3 class="font-bold text-lg">✅ Prêt à continuer !</h3>
+       <p class="text-gray-600 mt-1">Copiez les fichiers dans l'onglet <strong>Fichiers</strong></p>
+      </div>
+     </div>
+    </div>
+   </div><!-- Files Tab -->
+   <div id="files-tab" class="space-y-4 mb-8 hidden">
+    <div class="bg-white p-6 rounded-lg shadow">
+     <h2 class="text-2xl font-bold text-gray-800 mb-4">📄 Fichiers à créer</h2><!-- .env file -->
+     <div class="mb-8">
+      <div class="flex items-center gap-2 mb-3">
+       <span class="bg-yellow-500 text-white px-3 py-1 rounded font-bold text-sm">.env</span>
+       <p class="text-gray-600">Configuration du bot</p>
+      </div>
+      <pre>BOT_NAME=MonBot
+ADMIN_ID=YOUR_WHATSAPP_NUMBER@c.us
+WEBHOOK_URL=http://localhost:3000</pre>
+     </div><!-- bot.js file -->
+     <div class="mb-8">
+      <div class="flex items-center gap-2 mb-3">
+       <span class="bg-green-600 text-white px-3 py-1 rounded font-bold text-sm">bot.js</span>
+       <p class="text-gray-600">Fichier principal (copier et coller)</p>
+      </div><button onclick="copyCode('bot-code')" class="mb-2 bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">📋 Copier le code</button>
+      <pre id="bot-code">const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+const fs = require('fs');
+require('dotenv').config();
+
+const client = new Client({
+  authStrategy: new LocalAuth()
+});
+
+// Stockage des données
+const botData = {
+  bannedUsers: {},
+  mutedUsers: {},
+  userWarnings: {},
+  groupSettings: {},
+  logs: []
+};
+
+// Fichier de sauvegarde
+const dataFile = 'botData.json';
+if (fs.existsSync(dataFile)) {
+  const saved = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+  Object.assign(botData, saved);
+}
+
+function saveData() {
+  fs.writeFileSync(dataFile, JSON.stringify(botData, null, 2));
+}
+
+// Commandes disponibles
+const COMMANDS = {
+  '/help': 'Affiche toutes les commandes',
+  '/tagall': 'Tagger tous les membres du groupe',
+  '/kickall': 'Expulser tous les membres',
+  '/kick @user': 'Expulser un utilisateur spécifique',
+  '/clear': 'Supprimer les messages',
+  '/info': 'Infos sur le groupe',
+  '/promote @user': 'Promouvoir admin',
+  '/demote @user': 'Rétrograder admin',
+  '/ban @user': 'Bannir un utilisateur',
+  '/unban @user': 'Débannir',
+  '/warn @user': 'Avertir',
+  '/mute @user': 'Rendre muet',
+  '/unmute @user': 'Retirer le silence',
+  '/profile @user': 'Voir le profil',
+  '/sudo @user': 'Mode délégué',
+  '/logs': 'Voir les logs',
+  '/stats': 'Statistiques',
+  '/leave': 'Bot quitte le groupe'
+};
+
+function addLog(groupId, action, user) {
+  botData.logs.push({
+    timestamp: new Date().toISOString(),
+    group: groupId,
+    action,
+    user
+  });
+  if (botData.logs.length &gt; 100) botData.logs.shift();
+  saveData();
+}
+
+client.on('qr', qr =&gt; {
+  console.log('Scannez ce QR code avec WhatsApp:');
+  qrcode.generate(qr, { small: true });
+});
+
+client.on('ready', () =&gt; {
+  console.log('✅ Bot connecté avec succès !');
+});
+
+client.on('message', async msg =&gt; {
+  try {
+    const chat = await msg.getChat();
+    
+    if (!chat.isGroup) return;
+
+    const contact = await msg.getContact();
+    const isAdmin = msg.author === process.env.ADMIN_ID;
+    const isMuted = botData.mutedUsers[msg.from]?.[msg.author];
+    
+    if (!msg.body.startsWith('/')) return;
+    
+    // Vérifier si l'utilisateur est muet
+    if (isMuted) {
+      await msg.react('🔇');
+      return;
+    }
+
+    const args = msg.body.slice(1).split(' ');
+    const command = '/' + args[0];
+    const target = args[1];
+
+    console.log(`[${chat.name}] ${contact.name}: ${msg.body}`);
+
+    switch (command) {
+      case '/help':
+        let helpText = '📋 *Commandes disponibles:*\n\n';
+        Object.entries(COMMANDS).forEach(([cmd, desc]) =&gt; {
+          helpText += `${cmd} - ${desc}\n`;
+        });
+        await msg.reply(helpText);
+        break;
+
+      case '/tagall':
+        let tagMessage = '👋 *Ping à tous:*\n';
+        const members = await chat.participants;
+        members.forEach(m =&gt; {
+          tagMessage += `@${m.id.user} `;
+        });
+        await client.sendMessage(msg.from, tagMessage, { mentions: members });
+        addLog(msg.from, 'tagall', contact.name);
+        break;
+
+      case '/kickall':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        const allMembers = await chat.participants;
+        for (let member of allMembers) {
+          if (member.id.user !== process.env.ADMIN_ID.split('@')[0]) {
+            await chat.removeParticipants([member.id]);
+            await new Promise(resolve =&gt; setTimeout(resolve, 500));
+          }
+        }
+        await msg.reply('✅ Tous les membres expulsés!');
+        addLog(msg.from, 'kickall', contact.name);
+        break;
+
+      case '/kick':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        if (!msg.hasQuotedMsg) {
+          await msg.reply('❌ Répondez au message de l\'utilisateur');
+          break;
+        }
+        const quotedMsg = await msg.getQuotedMessage();
+        const targetContact = await quotedMsg.getContact();
+        const targetMember = await chat.participants.find(p =&gt; p.id.user === quotedMsg.author.split('@')[0]);
+        
+        if (targetMember) {
+          await chat.removeParticipants([targetMember.id]);
+          await msg.reply(`✅ @${targetContact.name} a été expulsé!`);
+          addLog(msg.from, 'kick', targetContact.name);
+        }
+        break;
+
+      case '/sudo':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        if (!msg.hasQuotedMsg) {
+          await msg.reply('❌ Répondez au message de l\'utilisateur');
+          break;
+        }
+        const sudoTarget = await msg.getQuotedMessage();
+        const sudoUser = await sudoTarget.getContact();
+        
+        // Enregistrer cet utilisateur comme admin temporaire
+        if (!botData.groupSettings[msg.from]) {
+          botData.groupSettings[msg.from] = {};
+        }
+        botData.groupSettings[msg.from].sudoUser = sudoTarget.author;
+        saveData();
+        
+        await msg.reply(`✅ @${sudoUser.name} peut maintenant utiliser les commandes admin!`);
+        addLog(msg.from, 'sudo', sudoUser.name);
+        break;
+
+      case '/ban':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        if (!msg.hasQuotedMsg) {
+          await msg.reply('❌ Répondez au message');
+          break;
+        }
+        const bannedMsg = await msg.getQuotedMessage();
+        const bannedUser = await bannedMsg.getContact();
+        
+        if (!botData.bannedUsers[msg.from]) {
+          botData.bannedUsers[msg.from] = {};
+        }
+        botData.bannedUsers[msg.from][bannedMsg.author] = true;
+        saveData();
+        
+        await msg.reply(`🚫 @${bannedUser.name} a été banni!`);
+        addLog(msg.from, 'ban', bannedUser.name);
+        break;
+
+      case '/unban':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        if (!msg.hasQuotedMsg) {
+          await msg.reply('❌ Répondez au message');
+          break;
+        }
+        const unbannedMsg = await msg.getQuotedMessage();
+        const unbannedUser = await unbannedMsg.getContact();
+        
+        if (botData.bannedUsers[msg.from]) {
+          delete botData.bannedUsers[msg.from][unbannedMsg.author];
+          saveData();
+        }
+        
+        await msg.reply(`✅ @${unbannedUser.name} a été débanni!`);
+        addLog(msg.from, 'unban', unbannedUser.name);
+        break;
+
+      case '/warn':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        if (!msg.hasQuotedMsg) {
+          await msg.reply('❌ Répondez au message');
+          break;
+        }
+        const warnedMsg = await msg.getQuotedMessage();
+        const warnedUser = await warnedMsg.getContact();
+        
+        if (!botData.userWarnings[msg.from]) {
+          botData.userWarnings[msg.from] = {};
+        }
+        if (!botData.userWarnings[msg.from][warnedMsg.author]) {
+          botData.userWarnings[msg.from][warnedMsg.author] = 0;
+        }
+        botData.userWarnings[msg.from][warnedMsg.author]++;
+        const warnings = botData.userWarnings[msg.from][warnedMsg.author];
+        saveData();
+        
+        await msg.reply(`⚠️ Avertissement à @${warnedUser.name} (${warnings}/3)`);
+        
+        if (warnings &gt;= 3) {
+          const warnMember = await chat.participants.find(p =&gt; p.id.user === warnedMsg.author.split('@')[0]);
+          if (warnMember) {
+            await chat.removeParticipants([warnMember.id]);
+            await msg.reply(`🚫 @${warnedUser.name} a été expulsé (3 avertissements)`);
+            delete botData.userWarnings[msg.from][warnedMsg.author];
+            saveData();
+          }
+        }
+        addLog(msg.from, 'warn', warnedUser.name);
+        break;
+
+      case '/mute':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        if (!msg.hasQuotedMsg) {
+          await msg.reply('❌ Répondez au message');
+          break;
+        }
+        const mutedMsg = await msg.getQuotedMessage();
+        const mutedUser = await mutedMsg.getContact();
+        
+        if (!botData.mutedUsers[msg.from]) {
+          botData.mutedUsers[msg.from] = {};
+        }
+        botData.mutedUsers[msg.from][mutedMsg.author] = true;
+        saveData();
+        
+        await msg.reply(`🔇 @${mutedUser.name} ne peut plus parler!`);
+        addLog(msg.from, 'mute', mutedUser.name);
+        break;
+
+      case '/unmute':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        if (!msg.hasQuotedMsg) {
+          await msg.reply('❌ Répondez au message');
+          break;
+        }
+        const unmutedMsg = await msg.getQuotedMessage();
+        const unmutedUser = await unmutedMsg.getContact();
+        
+        if (botData.mutedUsers[msg.from]) {
+          delete botData.mutedUsers[msg.from][unmutedMsg.author];
+          saveData();
+        }
+        
+        await msg.reply(`🔊 @${unmutedUser.name} peut à nouveau parler!`);
+        addLog(msg.from, 'unmute', unmutedUser.name);
+        break;
+
+      case '/profile':
+        if (!msg.hasQuotedMsg) {
+          await msg.reply('❌ Répondez au message');
+          break;
+        }
+        const profileMsg = await msg.getQuotedMessage();
+        const profileUser = await profileMsg.getContact();
+        const warnings = botData.userWarnings[msg.from]?.[profileMsg.author] || 0;
+        const isBanned = botData.bannedUsers[msg.from]?.[profileMsg.author] || false;
+        const isMutedProfile = botData.mutedUsers[msg.from]?.[profileMsg.author] || false;
+        
+        let profileText = `👤 *Profil de @${profileUser.name}*\n`;
+        profileText += `⚠️ Avertissements: ${warnings}/3\n`;
+        profileText += `🚫 Banni: ${isBanned ? 'Oui' : 'Non'}\n`;
+        profileText += `🔇 Muet: ${isMutedProfile ? 'Oui' : 'Non'}`;
+        
+        await msg.reply(profileText);
+        break;
+
+      case '/info':
+        const groupInfo = `
+ℹ️ *Informations du groupe*
+Nom: ${chat.name}
+Membres: ${chat.participants.length}
+Description: ${chat.description || 'Aucune'}
+        `;
+        await msg.reply(groupInfo);
+        break;
+
+      case '/stats':
+        const recentLogs = botData.logs.filter(l =&gt; l.group === msg.from).slice(-10);
+        let statsText = '📊 *Statistiques*\n';
+        statsText += `Membres: ${chat.participants.length}\n`;
+        statsText += `Bannies: ${Object.keys(botData.bannedUsers[msg.from] || {}).length}\n`;
+        statsText += `Muets: ${Object.keys(botData.mutedUsers[msg.from] || {}).length}\n`;
+        statsText += `\n*Dernières actions:*\n`;
+        recentLogs.forEach(log =&gt; {
+          statsText += `${log.action} - ${log.user}\n`;
+        });
+        await msg.reply(statsText);
+        break;
+
+      case '/logs':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        const logs = botData.logs.filter(l =&gt; l.group === msg.from).slice(-20);
+        let logsText = '📋 *Derniers logs:*\n\n';
+        logs.forEach(log =&gt; {
+          logsText += `${new Date(log.timestamp).toLocaleString()} - ${log.action} (${log.user})\n`;
+        });
+        await msg.reply(logsText || '✅ Aucun log');
+        break;
+
+      case '/clear':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        const allMessages = await chat.fetchMessages({ limit: 1000 });
+        await Promise.all(allMessages.map(m =&gt; m.delete(true)));
+        await msg.reply('✅ Messages supprimés!');
+        addLog(msg.from, 'clear', contact.name);
+        break;
+
+      case '/promote':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        if (!msg.hasQuotedMsg) {
+          await msg.reply('❌ Répondez au message');
+          break;
+        }
+        const promoteMsg = await msg.getQuotedMessage();
+        const promotedUser = await promoteMsg.getContact();
+        const promoteMember = await chat.participants.find(p =&gt; p.id.user === promoteMsg.author.split('@')[0]);
+        
+        if (promoteMember) {
+          await chat.promoteParticipants([promoteMember.id]);
+          await msg.reply(`✅ @${promotedUser.name} est admin!`);
+          addLog(msg.from, 'promote', promotedUser.name);
+        }
+        break;
+
+      case '/demote':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        if (!msg.hasQuotedMsg) {
+          await msg.reply('❌ Répondez au message');
+          break;
+        }
+        const demoteMsg = await msg.getQuotedMessage();
+        const demotedUser = await demoteMsg.getContact();
+        const demoteMember = await chat.participants.find(p =&gt; p.id.user === demoteMsg.author.split('@')[0]);
+        
+        if (demoteMember) {
+          await chat.demoteParticipants([demoteMember.id]);
+          await msg.reply(`✅ @${demotedUser.name} n'est plus admin`);
+          addLog(msg.from, 'demote', demotedUser.name);
+        }
+        break;
+
+      case '/leave':
+        if (!isAdmin) {
+          await msg.reply('❌ Non autorisé!');
+          break;
+        }
+        await chat.leave();
+        break;
+
+      default:
+        await msg.reply('❓ Commande inconnue. Tapez */help*');
+    }
+  } catch (err) {
+    console.error('Erreur:', err);
+  }
+});
+
+client.initialize();</pre>
+     </div><!-- package.json -->
+     <div class="mb-8">
+      <div class="flex items-center gap-2 mb-3">
+       <span class="bg-red-600 text-white px-3 py-1 rounded font-bold text-sm">package.json</span>
+       <p class="text-gray-600">Déjà créé avec npm init</p>
+      </div>
+      <pre>{
+  "name": "whatsapp-bot",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp avec commandes de groupe",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "whatsapp-web.js": "^1.24.5",
+    "qrcode-terminal": "^0.12.0",
+    "dotenv": "^16.0.3"
+  }
+}</pre>
+     </div>
+    </div>
+   </div><!-- Commands Tab -->
+   <div id="commands-tab" class="space-y-4 mb-8 hidden">
+    <div class="bg-white p-6 rounded-lg shadow">
+     <h2 class="text-2xl font-bold text-gray-800 mb-4">⚙️ Commandes disponibles</h2>
+     <div class="grid gap-4">
+      <div class="border-l-4 border-green-500 pl-4 py-2">
+       <code>/help</code>
+       <p class="text-gray-600 text-sm mt-1">Affiche toutes les commandes</p>
+      </div>
+      <div class="border-l-4 border-blue-500 pl-4 py-2">
+       <code>/tagall</code>
+       <p class="text-gray-600 text-sm mt-1">Tagger tous les membres du groupe</p>
+      </div>
+      <div class="border-l-4 border-red-500 pl-4 py-2">
+       <code>/kickall</code>
+       <p class="text-gray-600 text-sm mt-1">Expulser tous les membres (sauf vous)</p>
+       <p class="text-xs text-red-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-yellow-500 pl-4 py-2">
+       <code>/clear</code>
+       <p class="text-gray-600 text-sm mt-1">Supprimer les 1000 derniers messages</p>
+       <p class="text-xs text-yellow-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-purple-500 pl-4 py-2">
+       <code>/info</code>
+       <p class="text-gray-600 text-sm mt-1">Infos sur le groupe (nom, membres, description)</p>
+      </div>
+      <div class="border-l-4 border-indigo-500 pl-4 py-2">
+       <code>/promote @user</code>
+       <p class="text-gray-600 text-sm mt-1">Promouvoir un membre en admin</p>
+       <p class="text-xs text-indigo-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-pink-500 pl-4 py-2">
+       <code>/demote @user</code>
+       <p class="text-gray-600 text-sm mt-1">Rétrograder un admin</p>
+       <p class="text-xs text-pink-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-cyan-500 pl-4 py-2">
+       <code>/leave</code>
+       <p class="text-gray-600 text-sm mt-1">Le bot quitte le groupe</p>
+       <p class="text-xs text-cyan-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <hr class="my-4">
+      <h3 class="text-lg font-bold text-gray-800 mt-6 mb-4">👤 Commandes individuelles</h3>
+      <div class="border-l-4 border-orange-500 pl-4 py-2">
+       <code>/kick @user</code>
+       <p class="text-gray-600 text-sm mt-1">Expulser un membre spécifique</p>
+       <p class="text-xs text-orange-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-orange-500 pl-4 py-2">
+       <code>/sudo @user</code>
+       <p class="text-gray-600 text-sm mt-1">Connecter un autre utilisateur au bot (mode délégué)</p>
+       <p class="text-xs text-orange-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-orange-500 pl-4 py-2">
+       <code>/ban @user</code>
+       <p class="text-gray-600 text-sm mt-1">Bannir un utilisateur (+ liste noire)</p>
+       <p class="text-xs text-orange-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-orange-500 pl-4 py-2">
+       <code>/unban @user</code>
+       <p class="text-gray-600 text-sm mt-1">Débannir un utilisateur</p>
+       <p class="text-xs text-orange-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-orange-500 pl-4 py-2">
+       <code>/warn @user</code>
+       <p class="text-gray-600 text-sm mt-1">Avertir un utilisateur</p>
+       <p class="text-xs text-orange-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-orange-500 pl-4 py-2">
+       <code>/mute @user</code>
+       <p class="text-gray-600 text-sm mt-1">Rendre muet un utilisateur (il ne peut plus écrire)</p>
+       <p class="text-xs text-orange-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-orange-500 pl-4 py-2">
+       <code>/unmute @user</code>
+       <p class="text-gray-600 text-sm mt-1">Retirer le silence d'un utilisateur</p>
+       <p class="text-xs text-orange-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-orange-500 pl-4 py-2">
+       <code>/profile @user</code>
+       <p class="text-gray-600 text-sm mt-1">Voir le profil d'un utilisateur (warnings, bans, etc.)</p>
+      </div>
+      <hr class="my-4">
+      <h3 class="text-lg font-bold text-gray-800 mt-6 mb-4">🎮 Commandes de gestion</h3>
+      <div class="border-l-4 border-teal-500 pl-4 py-2">
+       <code>/antibot on/off</code>
+       <p class="text-gray-600 text-sm mt-1">Activer/désactiver le mode anti-bot</p>
+       <p class="text-xs text-teal-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-teal-500 pl-4 py-2">
+       <code>/logs</code>
+       <p class="text-gray-600 text-sm mt-1">Voir les dernières actions (kicks, bans, etc.)</p>
+       <p class="text-xs text-teal-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-teal-500 pl-4 py-2">
+       <code>/stats</code>
+       <p class="text-gray-600 text-sm mt-1">Statistiques du groupe (messages, membres actifs)</p>
+      </div>
+      <div class="border-l-4 border-teal-500 pl-4 py-2">
+       <code>/prefix !</code>
+       <p class="text-gray-600 text-sm mt-1">Changer le préfixe des commandes (par défaut: /)</p>
+       <p class="text-xs text-teal-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+      <div class="border-l-4 border-teal-500 pl-4 py-2">
+       <code>/welcome on/off</code>
+       <p class="text-gray-600 text-sm mt-1">Activer/désactiver les messages de bienvenue</p>
+       <p class="text-xs text-teal-600 mt-1">⚠️ Admin seulement</p>
+      </div>
+     </div>
+    </div>
+   </div><!-- Deploy Tab -->
+   <div id="deploy-tab" class="space-y-4 mb-8 hidden">
+    <div class="bg-white p-6 rounded-lg shadow">
+     <h2 class="text-2xl font-bold text-gray-800 mb-4">🚀 Déploiement</h2>
+     <div class="space-y-4">
+      <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+       <h3 class="font-bold text-lg mb-2">Local (Recommandé pour commencer)</h3>
+       <ol class="list-decimal list-inside space-y-2 text-gray-700">
+        <li>Ouvrez un terminal dans votre dossier</li>
+        <li>Tapez: <code>npm start</code></li>
+        <li>Scannez le QR code avec WhatsApp</li>
+        <li>Le bot est maintenant actif ✅</li>
+       </ol>
+      </div>
+      <div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded">
+       <h3 class="font-bold text-lg mb-2">Hébergement Cloud (Production)</h3>
+       <p class="text-gray-700 mb-3">Options populaires:</p>
+       <ul class="space-y-2 text-gray-700">
+        <li>✅ <strong>Render.com</strong> - Gratuit avec limite</li>
+        <li>✅ <strong>Railway.app</strong> - $5/mois</li>
+        <li>✅ <strong>Heroku</strong> - À partir de $7/mois</li>
+        <li>✅ <strong>AWS EC2</strong> - Couche gratuite 12 mois</li>
+        <li>✅ <strong>DigitalOcean</strong> - $4/mois</li>
+       </ul>
+       <p class="text-sm text-gray-600 mt-3">Note: Le bot doit rester actif 24/7 pour fonctionner</p>
+      </div>
+      <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+       <h3 class="font-bold text-lg mb-2">Etapes de déploiement</h3>
+       <ol class="list-decimal list-inside space-y-2 text-gray-700">
+        <li>Créer un compte sur la plateforme (Render, Railway, etc.)</li>
+        <li>Connecter votre repo Git (ou uploadez les fichiers)</li>
+        <li>Définir l'environnement: <code>npm start</code></li>
+        <li>Configurer les variables d'environnement (.env)</li>
+        <li>Déployer et garder actif 24/7</li>
+       </ol>
+      </div>
+      <div class="bg-orange-50 border-l-4 border-orange-500 p-4 rounded">
+       <h3 class="font-bold text-lg mb-2">⚠️ Important</h3>
+       <ul class="space-y-2 text-gray-700 text-sm">
+        <li>🔒 Ne partagez JAMAIS votre fichier <code>.env</code></li>
+        <li>🔑 Gardez vos credentials secrets</li>
+        <li>📱 Le bot doit rester connecté en permanence</li>
+        <li>⚡ Certaines commandes peuvent être limitées par WhatsApp</li>
+       </ul>
+      </div>
+     </div>
+    </div>
+   </div><!-- Footer -->
+   <div class="bg-gray-800 text-white p-4 rounded-lg mt-8 text-center text-sm">
+    <p>🎉 Prêt ? Commencez avec l'onglet <strong>Setup</strong> puis copiez les fichiers !</p>
+   </div>
+  </div>
+  <script>
+    function switchTab(tab) {
+      // Hide all tabs
+      document.querySelectorAll('[id$="-tab"]').forEach(el => el.classList.add('hidden'));
+      
+      // Show selected tab
+      document.getElementById(tab + '-tab').classList.remove('hidden');
+      
+      // Update button styles
+      document.querySelectorAll('button[onclick^="switchTab"]').forEach(btn => {
+        btn.classList.remove('tab-active', 'text-gray-700');
+        btn.classList.add('text-gray-600');
+      });
+      event.target.classList.add('tab-active');
+    }
+
+    function copyCode(elementId) {
+      const code = document.getElementById(elementId).textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        alert('✅ Code copié !');
+      });
+    }
+
+    lucide.createIcons();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9fa2f3e087bdc873',t:'MTc3ODUyMTA1Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
